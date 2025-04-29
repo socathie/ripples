@@ -40,12 +40,7 @@
     $(document).ready(function() {
       // Get image URL from query parameter
       const urlParams = new URLSearchParams(window.location.search);
-      const imageUrl = urlParams.get('image');
-      
-      if (!imageUrl) {
-        alert('Please provide an image URL using the "image" query parameter');
-        return;
-      }
+      const imageUrl = urlParams.get('image') || 'https://socathie.github.io/ripples/background.png';
       
       // Set background image
       $('.ripple-container').css('background-image', `url('${imageUrl}')`);
