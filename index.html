@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Water Ripple Effect with jQuery Ripples.js</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #222;
+    }
+    
+    .ripple-container {
+      width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="ripple-container"></div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- jQuery Ripples plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery.ripples@0.6.3/dist/jquery.ripples.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      // Get image URL from query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const imageUrl = urlParams.get('image');
+      
+      if (!imageUrl) {
+        alert('Please provide an image URL using the "image" query parameter');
+        return;
+      }
+      
+      // Set background image
+      $('.ripple-container').css('background-image', `url('${imageUrl}')`);
+      
+      // Initialize ripples
+      $('.ripple-container').ripples({
+        resolution: 512,      // Higher = smoother ripples, more performance cost
+        dropRadius: 20,       // Radius of ripple in pixels
+        perturbance: 0.04,    // Refraction amount (0 = none, 1 = a lot)
+        interactive: true,    // Enable click and mouse interaction
+        crossOrigin: ''       // Enable cross-origin image loading
+      });
+
+      // Handle multi-touch events
+      let touchTimeout;
+      const container = $('.ripple-container');
+      
+      container.on('touchstart', function(e) {
+        e.preventDefault();
+        const touches = e.originalEvent.touches;
+        
+        // Create ripples for each touch point
+        for (let i = 0; i < touches.length; i++) {
+          const touch = touches[i];
+          const x = touch.pageX;
+          const y = touch.pageY;
+          
+          // Create ripple at touch point
+          container.ripples('drop', x, y, 20, 0.04);
+        }
+      });
+
+      // Prevent default touch behaviors
+      document.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+
+      // Handle window resize
+      $(window).on('resize', function() {
+        container.ripples('destroy');
+        container.ripples({
+          resolution: 512,
+          dropRadius: 20,
+          perturbance: 0.04,
+          interactive: true,
+          crossOrigin: ''
+        });
+      });
+    });
+  </script>
+</body>
+</html>
