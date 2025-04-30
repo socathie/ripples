@@ -23,6 +23,7 @@
       let moveSpeed = parseFloat(urlParams.get('move')) || 0.5;
       let baseThickness = parseFloat(urlParams.get('thickness')) || 4;
       let spinSpeed = parseFloat(urlParams.get('spin')) || 0.01;
+      let colorChangeSpeed = parseFloat(urlParams.get('colorSpeed')) || 0.002;
 
       function setup() {
         createCanvas(windowWidth, windowHeight);
@@ -64,7 +65,7 @@
           }
 
           let colorPair = lineData.colorPair;
-          let amt = (cos(lineLength * 0.002) + 1) / 2;
+          let amt = (cos(lineLength * colorChangeSpeed) + 1) / 2;
           let col = lerpColor(colorPair[0], colorPair[1], amt);
 
           let halfLength = lineLength / 2;
