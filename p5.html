@@ -14,7 +14,6 @@
   <script>
     let isTouching = false;
     let touchData = {};
-    let lineLength = 0;
     let maxLength = 300;
 
     function setup() {
@@ -26,7 +25,7 @@
       if (isTouching) {
         // Draw the growing line preview
         let duration = millis() - touchData.startTime;
-        lineLength = map(duration, 100, 2000, 20, maxLength, true);
+        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
 
         // Color: blue (short) to red (long)
         let c1 = color(0, 120, 255);
@@ -51,12 +50,12 @@
     }
 
     function touchStarted() {
-      // Only handle first touch for simplicity
-      if (touches.length > 0) {
+      // Handle all touches
+      for (let touch of touches) {
         isTouching = true;
         touchData = {
-          x: touches[0].x,
-          y: touches[0].y,
+          x: touch.x,
+          y: touch.y,
           startTime: millis(),
           angle: random(TWO_PI)
         };
@@ -67,7 +66,7 @@
     function touchEnded() {
       if (isTouching) {
         let duration = millis() - touchData.startTime;
-        lineLength = map(duration, 100, 2000, 20, maxLength, true);
+        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
 
         // Color: blue (short) to red (long)
         let c1 = color(0, 120, 255);
@@ -109,7 +108,7 @@
     function mouseReleased() {
       if (isTouching) {
         let duration = millis() - touchData.startTime;
-        lineLength = map(duration, 100, 2000, 20, maxLength, true);
+        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
 
         let c1 = color(0, 120, 255);
         let c2 = color(255, 50, 50);
