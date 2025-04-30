@@ -11,83 +11,99 @@
   </head>
   <body>
     <script>
+      // Global variables
       let activeLines = [];
       let maxLength = 200;
-      let touchToLineMap = new Map(); // Map to track which touch created which line
-      let colorPairs; // Declare the variable globally
+      let touchToLineMap = new Map();
+      let colorPairs;
       
+      // Get parameters from URL with defaults
+      const urlParams = new URLSearchParams(window.location.search);
+      let growthSpeed = parseFloat(urlParams.get('growth')) || 0.5;
+      let moveSpeed = parseFloat(urlParams.get('move')) || 0.5;
+      let baseThickness = parseFloat(urlParams.get('thickness')) || 4;
+      let spinSpeed = parseFloat(urlParams.get('spin')) || 0.01;
+
       function setup() {
         createCanvas(windowWidth, windowHeight);
         angleMode(RADIANS);
         background(0);
         
-        // Define color pairs
+        activeLines = [];
+        touchToLineMap.clear();
+        
         colorPairs = [
-          [color(0, 120, 255), color(255, 50, 50)],     // blue to red
-          [color(255, 50, 50), color(255, 255, 0)],     // red to yellow
-          [color(255, 255, 0), color(0, 120, 255)],     // yellow to blue
-          [color(255, 0, 255), color(0, 255, 255)],     // magenta to cyan
-          [color(255, 165, 0), color(128, 0, 128)],     // orange to purple
-          [color(0, 255, 0), color(255, 0, 255)]        // green to magenta
+          [color(0, 120, 255), color(128, 0, 128)],     // blue to purple
+          [color(128, 0, 128), color(0, 120, 255)],     // purple to blue
+          [color(0, 120, 255), color(0, 255, 0)],       // blue to green
+          [color(0, 255, 0), color(0, 120, 255)],       // green to blue
         ];
       }
 
       function draw() {
         background(0);
         
-        // Draw all active lines
         for (let lineData of activeLines) {
           let duration = millis() - lineData.startTime;
-          let lineLength;
-          
-          if (lineData.growing) {
-            // Make line grow indefinitely, speed based on force
-            let growthSpeed = map(lineData.force || 0.5, 0, 1, 0.2, 1.5); // Default to 0.5 if force not available
-            lineLength = map(duration, 0, 1000, 20, maxLength, true) * growthSpeed;
-            if (duration > 1000) {
-              // After reaching maxLength, continue growing beyond it
-              lineLength = maxLength + (duration - 1000) * 0.5 * growthSpeed;
+          let lineLength = lineData.growing ? duration * growthSpeed : lineData.finalLength;
+
+          if (!lineData.growing) {
+            if (!lineData.velocity) {
+              lineData.velocity = {
+                x: random(-moveSpeed, moveSpeed),
+                y: random(-moveSpeed, moveSpeed)
+              };
+              lineData.spinSpeed = spinSpeed * random(0.5, 1.5);
+              lineData.spinDirection = random() > 0.5 ? 1 : -1;
+              lineData.currentAngle = lineData.angle;
             }
-          } else {
-            lineLength = lineData.finalLength;
+            
+            lineData.x += lineData.velocity.x;
+            lineData.y += lineData.velocity.y;
+            lineData.currentAngle += lineData.spinSpeed * lineData.spinDirection;
           }
 
-          // Color: interpolate between the selected color pair
           let colorPair = lineData.colorPair;
           let amt = (cos(lineLength * 0.002) + 1) / 2;
           let col = lerpColor(colorPair[0], colorPair[1], amt);
 
-          // Calculate points for both ends
           let halfLength = lineLength / 2;
-          let x1 = lineData.x - halfLength * cos(lineData.angle);
-          let y1 = lineData.y - halfLength * sin(lineData.angle);
-          let x2 = lineData.x + halfLength * cos(lineData.angle);
-          let y2 = lineData.y + halfLength * sin(lineData.angle);
+          let currentAngle = lineData.growing ? lineData.angle : lineData.currentAngle;
+          let x1 = lineData.x - halfLength * cos(currentAngle);
+          let y1 = lineData.y - halfLength * sin(currentAngle);
+          let x2 = lineData.x + halfLength * cos(currentAngle);
+          let y2 = lineData.y + halfLength * sin(currentAngle);
 
-          // Draw line
           push();
-          // Draw outer glow
+          // Outer glow
           for (let i = 0; i < 4; i++) {
             stroke(red(col), green(col), blue(col), 60 - i * 12);
-            strokeWeight(12 - i * 2);
+            strokeWeight(baseThickness * (3 - i * 0.5));
             line(x1, y1, x2, y2);
           }
-          // Draw main line
+          // Main line
           stroke(col);
-          strokeWeight(4);
+          strokeWeight(baseThickness);
           line(x1, y1, x2, y2);
-          // Draw inner glow
+          // Inner glow
           stroke(255, 255, 255, 150);
-          strokeWeight(2);
+          strokeWeight(baseThickness * 0.5);
           line(x1, y1, x2, y2);
           pop();
+
+          let margin = maxLength * 2;
+          if (lineData.x < -margin || lineData.x > width + margin || 
+              lineData.y < -margin || lineData.y > height + margin) {
+            activeLines = activeLines.filter(line => line !== lineData);
+            if (lineData.touchId) {
+              touchToLineMap.delete(lineData.touchId);
+            }
+          }
         }
       }
 
       function touchStarted() {
-        // Add new line for each touch
         for (let touch of touches) {
-          // Check if this touch already has a line
           if (!touchToLineMap.has(touch.id)) {
             let newLine = {
               x: touch.x,
@@ -96,9 +112,8 @@
               angle: random(TWO_PI),
               growing: true,
               finalLength: 0,
-              force: touch.force || 0.5,
-              touchId: touch.id, // Store the touch ID
-              colorPair: colorPairs[floor(random(colorPairs.length))] // Properly randomize color pair
+              touchId: touch.id,
+              colorPair: colorPairs[floor(random(colorPairs.length))]
             };
             activeLines.push(newLine);
             touchToLineMap.set(touch.id, newLine);
@@ -107,36 +122,16 @@
         return false;
       }
 
-      function touchMoved() {
-        // Update force for existing touches
-        for (let touch of touches) {
-          let lineData = touchToLineMap.get(touch.id);
-          if (lineData && lineData.growing) {
-            lineData.force = touch.force || 0.5;
-          }
-        }
-        return false;
-      }
-
       function touchEnded() {
-        // Stop growing for ended touches
-        for (let touch of touches) {
-          let lineData = touchToLineMap.get(touch.id);
-          if (lineData && lineData.growing) {
-            let duration = millis() - lineData.startTime;
-            if (duration > 1000) {
-              lineData.finalLength = maxLength + (duration - 1000) * 0.5;
-            } else {
-              lineData.finalLength = map(duration, 0, 1000, 20, maxLength, true);
-            }
+        for (let lineData of activeLines) {
+          if (lineData.growing) {
+            lineData.finalLength = lineData.finalLength || (millis() - lineData.startTime) * growthSpeed;
             lineData.growing = false;
           }
-          touchToLineMap.delete(touch.id);
         }
         return false;
       }
 
-      // Optional: Support mouse for desktop testing
       function mousePressed() {
         activeLines.push({
           x: mouseX,
@@ -145,23 +140,15 @@
           angle: random(TWO_PI),
           growing: true,
           finalLength: 0,
-          force: 0.5, // Default force for mouse
-          colorPair: colorPairs[floor(random(colorPairs.length))], // Properly randomize color pair
-          reversed: random() < 0.5 // Randomly reverse the color direction
+          colorPair: colorPairs[floor(random(colorPairs.length))]
         });
         return false;
       }
 
       function mouseReleased() {
-        // Stop growing for all active lines
         for (let lineData of activeLines) {
           if (lineData.growing) {
-            let duration = millis() - lineData.startTime;
-            if (duration > 1000) {
-              lineData.finalLength = maxLength + (duration - 1000) * 0.5;
-            } else {
-              lineData.finalLength = map(duration, 0, 1000, 20, maxLength, true);
-            }
+            lineData.finalLength = lineData.finalLength || (millis() - lineData.startTime) * growthSpeed;
             lineData.growing = false;
           }
         }
