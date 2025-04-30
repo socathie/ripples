@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Line Art with p5.js</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <!-- p5.js library CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.2/lib/p5.min.js"></script>
+  <script>
+    let isTouching = false;
+    let touchData = {};
+    let maxLength = 300;
+
+    function setup() {
+      createCanvas(windowWidth, windowHeight);
+      background(0);
+    }
+
+    function draw() {
+      if (isTouching) {
+        // Draw the growing line preview
+        let duration = millis() - touchData.startTime;
+        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
+
+        // Color: blue (short) to red (long)
+        let c1 = color(0, 120, 255);
+        let c2 = color(255, 50, 50);
+        let amt = constrain(map(duration, 100, 2000, 0, 1), 0, 1);
+        let col = lerpColor(c1, c2, amt);
+
+        // Calculate points for both ends
+        let halfLength = lineLength / 2;
+        let x1 = touchData.x - halfLength * cos(touchData.angle);
+        let y1 = touchData.y - halfLength * sin(touchData.angle);
+        let x2 = touchData.x + halfLength * cos(touchData.angle);
+        let y2 = touchData.y + halfLength * sin(touchData.angle);
+
+        // Draw preview line (on top)
+        push();
+        stroke(col);
+        strokeWeight(4);
+        line(x1, y1, x2, y2);
+        pop();
+      }
+    }
+
+    function touchStarted() {
+      // Handle all touches
+      for (let touch of touches) {
+        isTouching = true;
+        touchData = {
+          x: touch.x,
+          y: touch.y,
+          startTime: millis(),
+          angle: random(TWO_PI)
+        };
+      }
+      return false;
+    }
+
+    function touchEnded() {
+      if (isTouching) {
+        let duration = millis() - touchData.startTime;
+        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
+
+        // Color: blue (short) to red (long)
+        let c1 = color(0, 120, 255);
+        let c2 = color(255, 50, 50);
+        let amt = constrain(map(duration, 100, 2000, 0, 1), 0, 1);
+        let col = lerpColor(c1, c2, amt);
+
+        // Calculate points for both ends
+        let halfLength = lineLength / 2;
+        let x1 = touchData.x - halfLength * cos(touchData.angle);
+        let y1 = touchData.y - halfLength * sin(touchData.angle);
+        let x2 = touchData.x + halfLength * cos(touchData.angle);
+        let y2 = touchData.y + halfLength * sin(touchData.angle);
+
+        // Draw final line (permanent)
+        push();
+        stroke(col);
+        strokeWeight(4);
+        line(x1, y1, x2, y2);
+        pop();
+
+        isTouching = false;
+      }
+      return false;
+    }
+
+    // Optional: Support mouse for desktop testing
+    function mousePressed() {
+      isTouching = true;
+      touchData = {
+        x: mouseX,
+        y: mouseY,
+        startTime: millis(),
+        angle: random(TWO_PI)
+      };
+      return false;
+    }
+
+    function mouseReleased() {
+      if (isTouching) {
+        let duration = millis() - touchData.startTime;
+        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
+
+        let c1 = color(0, 120, 255);
+        let c2 = color(255, 50, 50);
+        let amt = constrain(map(duration, 100, 2000, 0, 1), 0, 1);
+        let col = lerpColor(c1, c2, amt);
+
+        // Calculate points for both ends
+        let halfLength = lineLength / 2;
+        let x1 = touchData.x - halfLength * cos(touchData.angle);
+        let y1 = touchData.y - halfLength * sin(touchData.angle);
+        let x2 = touchData.x + halfLength * cos(touchData.angle);
+        let y2 = touchData.y + halfLength * sin(touchData.angle);
+
+        push();
+        stroke(col);
+        strokeWeight(4);
+        line(x1, y1, x2, y2);
+        pop();
+
+        isTouching = false;
+      }
+      return false;
+    }
+
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+      background(0);
+    }
+  </script>
+</body>
+</html>
