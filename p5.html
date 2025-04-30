@@ -1,142 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Interactive Line Art with p5.js</title>
-  <style>
-    html, body { margin: 0; padding: 0; overflow: hidden; }
-    canvas { display: block; }
-  </style>
-</head>
-<body>
-  <!-- p5.js library CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.2/lib/p5.min.js"></script>
-  <script>
-    let isTouching = false;
-    let touchData = {};
-    let maxLength = 300;
-
-    function setup() {
-      createCanvas(windowWidth, windowHeight);
-      background(0);
-    }
-
-    function draw() {
-      if (isTouching) {
-        // Draw the growing line preview
-        let duration = millis() - touchData.startTime;
-        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
-
-        // Color: blue (short) to red (long)
-        let c1 = color(0, 120, 255);
-        let c2 = color(255, 50, 50);
-        let amt = constrain(map(duration, 100, 2000, 0, 1), 0, 1);
-        let col = lerpColor(c1, c2, amt);
-
-        // Calculate points for both ends
-        let halfLength = lineLength / 2;
-        let x1 = touchData.x - halfLength * cos(touchData.angle);
-        let y1 = touchData.y - halfLength * sin(touchData.angle);
-        let x2 = touchData.x + halfLength * cos(touchData.angle);
-        let y2 = touchData.y + halfLength * sin(touchData.angle);
-
-        // Draw preview line (on top)
-        push();
-        stroke(col);
-        strokeWeight(4);
-        line(x1, y1, x2, y2);
-        pop();
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
       }
-    }
+    </style>
+  </head>
+  <body>
+    <script>
+      let activeLines = [];
+      let maxLength = 200;
 
-    function touchStarted() {
-      // Handle all touches
-      for (let touch of touches) {
-        isTouching = true;
-        touchData = {
-          x: touch.x,
-          y: touch.y,
+      function setup() {
+        createCanvas(windowWidth, windowHeight);
+        angleMode(RADIANS);
+        background(0);
+      }
+
+      function draw() {
+        background(0);
+        
+        // Draw all active lines
+        for (let lineData of activeLines) {
+          let duration = millis() - lineData.startTime;
+          let lineLength;
+          
+          if (lineData.growing) {
+            // Make line grow indefinitely, speed based on force
+            let growthSpeed = map(lineData.force || 0.5, 0, 1, 0.2, 1.5); // Default to 0.5 if force not available
+            lineLength = map(duration, 0, 1000, 20, maxLength, true) * growthSpeed;
+            if (duration > 1000) {
+              // After reaching maxLength, continue growing beyond it
+              lineLength = maxLength + (duration - 1000) * 0.5 * growthSpeed;
+            }
+          } else {
+            lineLength = lineData.finalLength;
+          }
+
+          // Color: blue to red based on length
+          let c1 = color(0, 120, 255);
+          let c2 = color(255, 50, 50);
+          let amt = (cos(lineLength * 0.002) + 1) / 2;
+          let col = lerpColor(c1, c2, amt);
+
+          // Calculate points for both ends
+          let halfLength = lineLength / 2;
+          let x1 = lineData.x - halfLength * cos(lineData.angle);
+          let y1 = lineData.y - halfLength * sin(lineData.angle);
+          let x2 = lineData.x + halfLength * cos(lineData.angle);
+          let y2 = lineData.y + halfLength * sin(lineData.angle);
+
+          // Draw line
+          push();
+          stroke(col);
+          strokeWeight(4);
+          line(x1, y1, x2, y2);
+          pop();
+        }
+      }
+
+      function touchStarted() {
+        // Add new line for each touch
+        for (let touch of touches) {
+          activeLines.push({
+            x: touch.x,
+            y: touch.y,
+            startTime: millis(),
+            angle: random(TWO_PI),
+            growing: true,
+            finalLength: 0,
+            force: touch.force || 0.5 // Store the force value, default to 0.5 if not available
+          });
+        }
+        return false;
+      }
+
+      function touchMoved() {
+        // Update force for existing touches
+        for (let touch of touches) {
+          for (let lineData of activeLines) {
+            if (lineData.growing && 
+                abs(lineData.x - touch.x) < 1 && 
+                abs(lineData.y - touch.y) < 1) {
+              lineData.force = touch.force || 0.5;
+            }
+          }
+        }
+        return false;
+      }
+
+      function touchEnded() {
+        // Stop growing for all active lines
+        for (let lineData of activeLines) {
+          if (lineData.growing) {
+            let duration = millis() - lineData.startTime;
+            if (duration > 1000) {
+              lineData.finalLength = maxLength + (duration - 1000) * 0.5;
+            } else {
+              lineData.finalLength = map(duration, 0, 1000, 20, maxLength, true);
+            }
+            lineData.growing = false;
+          }
+        }
+        return false;
+      }
+
+      // Optional: Support mouse for desktop testing
+      function mousePressed() {
+        activeLines.push({
+          x: mouseX,
+          y: mouseY,
           startTime: millis(),
-          angle: random(TWO_PI)
-        };
+          angle: random(TWO_PI),
+          growing: true,
+          finalLength: 0,
+          force: 0.5 // Default force for mouse
+        });
+        return false;
       }
-      return false;
-    }
 
-    function touchEnded() {
-      if (isTouching) {
-        let duration = millis() - touchData.startTime;
-        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
-
-        // Color: blue (short) to red (long)
-        let c1 = color(0, 120, 255);
-        let c2 = color(255, 50, 50);
-        let amt = constrain(map(duration, 100, 2000, 0, 1), 0, 1);
-        let col = lerpColor(c1, c2, amt);
-
-        // Calculate points for both ends
-        let halfLength = lineLength / 2;
-        let x1 = touchData.x - halfLength * cos(touchData.angle);
-        let y1 = touchData.y - halfLength * sin(touchData.angle);
-        let x2 = touchData.x + halfLength * cos(touchData.angle);
-        let y2 = touchData.y + halfLength * sin(touchData.angle);
-
-        // Draw final line (permanent)
-        push();
-        stroke(col);
-        strokeWeight(4);
-        line(x1, y1, x2, y2);
-        pop();
-
-        isTouching = false;
+      function mouseReleased() {
+        // Stop growing for all active lines
+        for (let lineData of activeLines) {
+          if (lineData.growing) {
+            let duration = millis() - lineData.startTime;
+            if (duration > 1000) {
+              lineData.finalLength = maxLength + (duration - 1000) * 0.5;
+            } else {
+              lineData.finalLength = map(duration, 0, 1000, 20, maxLength, true);
+            }
+            lineData.growing = false;
+          }
+        }
+        return false;
       }
-      return false;
-    }
 
-    // Optional: Support mouse for desktop testing
-    function mousePressed() {
-      isTouching = true;
-      touchData = {
-        x: mouseX,
-        y: mouseY,
-        startTime: millis(),
-        angle: random(TWO_PI)
-      };
-      return false;
-    }
-
-    function mouseReleased() {
-      if (isTouching) {
-        let duration = millis() - touchData.startTime;
-        let lineLength = map(duration, 100, 2000, 20, maxLength, true);
-
-        let c1 = color(0, 120, 255);
-        let c2 = color(255, 50, 50);
-        let amt = constrain(map(duration, 100, 2000, 0, 1), 0, 1);
-        let col = lerpColor(c1, c2, amt);
-
-        // Calculate points for both ends
-        let halfLength = lineLength / 2;
-        let x1 = touchData.x - halfLength * cos(touchData.angle);
-        let y1 = touchData.y - halfLength * sin(touchData.angle);
-        let x2 = touchData.x + halfLength * cos(touchData.angle);
-        let y2 = touchData.y + halfLength * sin(touchData.angle);
-
-        push();
-        stroke(col);
-        strokeWeight(4);
-        line(x1, y1, x2, y2);
-        pop();
-
-        isTouching = false;
+      function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+        background(0);
       }
-      return false;
-    }
-
-    function windowResized() {
-      resizeCanvas(windowWidth, windowHeight);
-      background(0);
-    }
-  </script>
-</body>
+    </script>
+  </body>
 </html>
