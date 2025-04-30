@@ -14,11 +14,22 @@
       let activeLines = [];
       let maxLength = 200;
       let touchToLineMap = new Map(); // Map to track which touch created which line
-
+      let colorPairs; // Declare the variable globally
+      
       function setup() {
         createCanvas(windowWidth, windowHeight);
         angleMode(RADIANS);
         background(0);
+        
+        // Define color pairs
+        colorPairs = [
+          [color(0, 120, 255), color(255, 50, 50)],     // blue to red
+          [color(255, 50, 50), color(255, 255, 0)],     // red to yellow
+          [color(255, 255, 0), color(0, 120, 255)],     // yellow to blue
+          [color(255, 0, 255), color(0, 255, 255)],     // magenta to cyan
+          [color(255, 165, 0), color(128, 0, 128)],     // orange to purple
+          [color(0, 255, 0), color(255, 0, 255)]        // green to magenta
+        ];
       }
 
       function draw() {
@@ -41,11 +52,10 @@
             lineLength = lineData.finalLength;
           }
 
-          // Color: blue to red based on length
-          let c1 = color(0, 120, 255);
-          let c2 = color(255, 50, 50);
+          // Color: interpolate between the selected color pair
+          let colorPair = lineData.colorPair;
           let amt = (cos(lineLength * 0.002) + 1) / 2;
-          let col = lerpColor(c1, c2, amt);
+          let col = lerpColor(colorPair[0], colorPair[1], amt);
 
           // Calculate points for both ends
           let halfLength = lineLength / 2;
@@ -56,8 +66,19 @@
 
           // Draw line
           push();
+          // Draw outer glow
+          for (let i = 0; i < 4; i++) {
+            stroke(red(col), green(col), blue(col), 60 - i * 12);
+            strokeWeight(12 - i * 2);
+            line(x1, y1, x2, y2);
+          }
+          // Draw main line
           stroke(col);
           strokeWeight(4);
+          line(x1, y1, x2, y2);
+          // Draw inner glow
+          stroke(255, 255, 255, 150);
+          strokeWeight(2);
           line(x1, y1, x2, y2);
           pop();
         }
@@ -76,7 +97,8 @@
               growing: true,
               finalLength: 0,
               force: touch.force || 0.5,
-              touchId: touch.id // Store the touch ID
+              touchId: touch.id, // Store the touch ID
+              colorPair: colorPairs[floor(random(colorPairs.length))] // Properly randomize color pair
             };
             activeLines.push(newLine);
             touchToLineMap.set(touch.id, newLine);
@@ -123,7 +145,9 @@
           angle: random(TWO_PI),
           growing: true,
           finalLength: 0,
-          force: 0.5 // Default force for mouse
+          force: 0.5, // Default force for mouse
+          colorPair: colorPairs[floor(random(colorPairs.length))], // Properly randomize color pair
+          reversed: random() < 0.5 // Randomly reverse the color direction
         });
         return false;
       }
