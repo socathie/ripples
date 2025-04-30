@@ -13,6 +13,7 @@
     <script>
       let activeLines = [];
       let maxLength = 200;
+      let touchToLineMap = new Map(); // Map to track which touch created which line
 
       function setup() {
         createCanvas(windowWidth, windowHeight);
@@ -65,15 +66,21 @@
       function touchStarted() {
         // Add new line for each touch
         for (let touch of touches) {
-          activeLines.push({
-            x: touch.x,
-            y: touch.y,
-            startTime: millis(),
-            angle: random(TWO_PI),
-            growing: true,
-            finalLength: 0,
-            force: touch.force || 0.5 // Store the force value, default to 0.5 if not available
-          });
+          // Check if this touch already has a line
+          if (!touchToLineMap.has(touch.id)) {
+            let newLine = {
+              x: touch.x,
+              y: touch.y,
+              startTime: millis(),
+              angle: random(TWO_PI),
+              growing: true,
+              finalLength: 0,
+              force: touch.force || 0.5,
+              touchId: touch.id // Store the touch ID
+            };
+            activeLines.push(newLine);
+            touchToLineMap.set(touch.id, newLine);
+          }
         }
         return false;
       }
@@ -81,21 +88,19 @@
       function touchMoved() {
         // Update force for existing touches
         for (let touch of touches) {
-          for (let lineData of activeLines) {
-            if (lineData.growing && 
-                abs(lineData.x - touch.x) < 1 && 
-                abs(lineData.y - touch.y) < 1) {
-              lineData.force = touch.force || 0.5;
-            }
+          let lineData = touchToLineMap.get(touch.id);
+          if (lineData && lineData.growing) {
+            lineData.force = touch.force || 0.5;
           }
         }
         return false;
       }
 
       function touchEnded() {
-        // Stop growing for all active lines
-        for (let lineData of activeLines) {
-          if (lineData.growing) {
+        // Stop growing for ended touches
+        for (let touch of touches) {
+          let lineData = touchToLineMap.get(touch.id);
+          if (lineData && lineData.growing) {
             let duration = millis() - lineData.startTime;
             if (duration > 1000) {
               lineData.finalLength = maxLength + (duration - 1000) * 0.5;
@@ -104,6 +109,7 @@
             }
             lineData.growing = false;
           }
+          touchToLineMap.delete(touch.id);
         }
         return false;
       }
