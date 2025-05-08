@@ -194,6 +194,7 @@
 
       function touchMoved() {
         for (let touch of touches) {
+          // Find the line that matches this touch ID
           let lineData = activeLines.find(line => line.touchId === touch.id);
           if (lineData && lineData.growing) {
             lineData.endX = touch.x;
@@ -204,9 +205,12 @@
       }
 
       function touchEnded() {
-        for (let touch of touches) {
-          let lineData = activeLines.find(line => line.touchId === touch.id);
-          if (lineData && lineData.growing) {
+        // Get all current touch IDs
+        let currentTouchIds = touches.map(t => t.id);
+        
+        // Find and break lines whose touch has ended
+        for (let lineData of activeLines) {
+          if (lineData.growing && lineData.touchId && !currentTouchIds.includes(lineData.touchId)) {
             breakLine(lineData);
           }
         }
