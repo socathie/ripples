@@ -24,6 +24,7 @@
       let separation = parseFloat(urlParams.get('separation')) || 0.2; // How much pieces spread apart
       let middleLength = parseFloat(urlParams.get('middleLength')) || 0.7; // Length of middle pieces (0-1)
       let unevenness = parseFloat(urlParams.get('uneven')) || 0.3; // How uneven the pieces are (0-1)
+      let glowMultiplier = parseFloat(urlParams.get('glow')) || 1; // 1 is original glow, 2 is double, etc.
 
       function setup() {
         createCanvas(windowWidth, windowHeight);
@@ -40,8 +41,15 @@
         for (let lineData of activeLines) {
           if (lineData.growing) {
             // Update end point while drawing
-            lineData.endX = mouseX;
-            lineData.endY = mouseY;
+            if (lineData.touchId) {
+              // For touch, end points are updated in touchMoved
+              lineData.endX = touches.find(t => t.id === lineData.touchId)?.x || lineData.endX;
+              lineData.endY = touches.find(t => t.id === lineData.touchId)?.y || lineData.endY;
+            } else {
+              // For mouse
+              lineData.endX = mouseX;
+              lineData.endY = mouseY;
+            }
             
             // Calculate angle and length
             let dx = lineData.endX - lineData.x;
@@ -54,7 +62,7 @@
             // Outer glow
             for (let i = 0; i < 4; i++) {
               stroke(hexToRgb(lineColor, 60 - i * 12));
-              strokeWeight(baseThickness * (3 - i * 0.5));
+              strokeWeight(baseThickness * (3 - i * 0.5) * glowMultiplier);
               line(lineData.x, lineData.y, lineData.endX, lineData.endY);
             }
             // Main line
@@ -78,7 +86,7 @@
               // Outer glow
               for (let i = 0; i < 4; i++) {
                 stroke(hexToRgb(lineColor, 60 - i * 12));
-                strokeWeight(baseThickness * (3 - i * 0.5));
+                strokeWeight(baseThickness * (3 - i * 0.5) * glowMultiplier);
                 line(x1, y1, x2, y2);
               }
               // Main line
@@ -213,9 +221,21 @@
         return false;
       }
 
+      function touchMoved() {
+        for (let touch of touches) {
+          let lineData = touchToLineMap.get(touch.id);
+          if (lineData && lineData.growing) {
+            lineData.endX = touch.x;
+            lineData.endY = touch.y;
+          }
+        }
+        return false;
+      }
+
       function touchEnded() {
-        for (let lineData of activeLines) {
-          if (lineData.growing) {
+        for (let touch of touches) {
+          let lineData = touchToLineMap.get(touch.id);
+          if (lineData && lineData.growing) {
             breakLine(lineData);
           }
         }
