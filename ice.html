@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // Global variables
+      let activeLines = [];
+      let touchToLineMap = new Map();
+      
+      // Get parameters from URL with defaults
+      const urlParams = new URLSearchParams(window.location.search);
+      let gravity = parseFloat(urlParams.get('gravity')) || 0.5;
+      let baseThickness = parseFloat(urlParams.get('thickness')) || 4;
+      let lineColor = '#' + (urlParams.get('color') || 'ADD8E6'); // Add # to the hex color
+      let pieceSize = parseFloat(urlParams.get('pieceSize')) || 50; // Length per piece for auto-calculation
+      let separation = parseFloat(urlParams.get('separation')) || 0.2; // How much pieces spread apart
+      let middleLength = parseFloat(urlParams.get('middleLength')) || 0.7; // Length of middle pieces (0-1)
+      let unevenness = parseFloat(urlParams.get('uneven')) || 0.3; // How uneven the pieces are (0-1)
+
+      function setup() {
+        createCanvas(windowWidth, windowHeight);
+        angleMode(RADIANS);
+        background(0);
+        
+        activeLines = [];
+        touchToLineMap.clear();
+      }
+
+      function draw() {
+        background(0);
+        
+        for (let lineData of activeLines) {
+          if (lineData.growing) {
+            // Update end point while drawing
+            lineData.endX = mouseX;
+            lineData.endY = mouseY;
+            
+            // Calculate angle and length
+            let dx = lineData.endX - lineData.x;
+            let dy = lineData.endY - lineData.y;
+            lineData.angle = atan2(dy, dx);
+            lineData.finalLength = dist(lineData.x, lineData.y, lineData.endX, lineData.endY);
+            
+            // Draw the line
+            push();
+            // Outer glow
+            for (let i = 0; i < 4; i++) {
+              stroke(hexToRgb(lineColor, 60 - i * 12));
+              strokeWeight(baseThickness * (3 - i * 0.5));
+              line(lineData.x, lineData.y, lineData.endX, lineData.endY);
+            }
+            // Main line
+            stroke(hexToRgb(lineColor));
+            strokeWeight(baseThickness);
+            line(lineData.x, lineData.y, lineData.endX, lineData.endY);
+            // Inner glow
+            stroke(255, 255, 255, 150);
+            strokeWeight(baseThickness * 0.5);
+            line(lineData.x, lineData.y, lineData.endX, lineData.endY);
+            pop();
+          } else {
+            // Draw broken pieces
+            for (let piece of lineData.pieces) {
+              let x1 = piece.x - piece.length/2 * cos(piece.angle);
+              let y1 = piece.y - piece.length/2 * sin(piece.angle);
+              let x2 = piece.x + piece.length/2 * cos(piece.angle);
+              let y2 = piece.y + piece.length/2 * sin(piece.angle);
+
+              push();
+              // Outer glow
+              for (let i = 0; i < 4; i++) {
+                stroke(hexToRgb(lineColor, 60 - i * 12));
+                strokeWeight(baseThickness * (3 - i * 0.5));
+                line(x1, y1, x2, y2);
+              }
+              // Main line
+              stroke(hexToRgb(lineColor));
+              strokeWeight(baseThickness);
+              line(x1, y1, x2, y2);
+              // Inner glow
+              stroke(255, 255, 255, 150);
+              strokeWeight(baseThickness * 0.5);
+              line(x1, y1, x2, y2);
+              pop();
+
+              // Update piece position
+              piece.velocity += gravity;
+              piece.y += piece.velocity;
+              piece.angle += piece.rotationSpeed;
+            }
+
+            // Remove pieces that have fallen below the screen
+            lineData.pieces = lineData.pieces.filter(piece => piece.y < height + 100);
+            if (lineData.pieces.length === 0) {
+              activeLines = activeLines.filter(line => line !== lineData);
+              if (lineData.touchId) {
+                touchToLineMap.delete(lineData.touchId);
+              }
+            }
+          }
+        }
+      }
+
+      function hexToRgb(hex, alpha = 255) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return color(r, g, b, alpha);
+      }
+
+      function breakLine(lineData) {
+        const numPieces = Math.max(3, Math.floor(lineData.finalLength / pieceSize) * 2 + 1);
+        const basePieceLength = lineData.finalLength / numPieces;
+        const pieces = [];
+        
+        // Generate random lengths that sum to the total length
+        let remainingLength = lineData.finalLength;
+        let pieceLengths = [];
+        
+        for (let i = 0; i < numPieces; i++) {
+          if (i === numPieces - 1) {
+            // Last piece gets remaining length
+            pieceLengths.push(remainingLength);
+          } else {
+            // Random length between 0.5 and 1.5 times the base length
+            let minLength = basePieceLength * (1 - unevenness);
+            let maxLength = basePieceLength * (1 + unevenness);
+            let length = random(minLength, maxLength);
+            length = min(length, remainingLength - (numPieces - i - 1) * minLength);
+            pieceLengths.push(length);
+            remainingLength -= length;
+          }
+        }
+
+        // Shuffle all pieces
+        pieceLengths = shuffle(pieceLengths);
+
+        let currentPos = 0;
+        for (let i = 0; i < numPieces; i++) {
+          let pieceLength = pieceLengths[i];
+          let centerPos = currentPos + pieceLength/2;
+          
+          // Calculate center position before applying middleLength
+          const t = centerPos / lineData.finalLength;
+          const x = lerp(lineData.x, lineData.endX, t);
+          const y = lerp(lineData.y, lineData.endY, t);
+          
+          // Apply middleLength to all pieces
+          pieceLength *= middleLength;
+          
+          // All pieces rotate
+          let angle = lineData.angle + random(-separation, separation);
+          
+          pieces.push({
+            x: x,
+            y: y,
+            length: pieceLength,
+            angle: angle,
+            velocity: 0,
+            rotationSpeed: random(-0.02, 0.02)
+          });
+          
+          currentPos += pieceLengths[i]; // Use original length for spacing
+        }
+
+        lineData.pieces = pieces;
+        lineData.growing = false;
+      }
+
+      function mousePressed() {
+        activeLines.push({
+          x: mouseX,
+          y: mouseY,
+          growing: true,
+          endX: mouseX,
+          endY: mouseY
+        });
+        return false;
+      }
+
+      function mouseReleased() {
+        for (let lineData of activeLines) {
+          if (lineData.growing) {
+            breakLine(lineData);
+          }
+        }
+        return false;
+      }
+
+      function touchStarted() {
+        for (let touch of touches) {
+          if (!touchToLineMap.has(touch.id)) {
+            let newLine = {
+              x: touch.x,
+              y: touch.y,
+              growing: true,
+              endX: touch.x,
+              endY: touch.y,
+              touchId: touch.id
+            };
+            activeLines.push(newLine);
+            touchToLineMap.set(touch.id, newLine);
+          }
+        }
+        return false;
+      }
+
+      function touchEnded() {
+        for (let lineData of activeLines) {
+          if (lineData.growing) {
+            breakLine(lineData);
+          }
+        }
+        return false;
+      }
+
+      function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+        background(0);
+      }
+    </script>
+  </body>
+</html> 
