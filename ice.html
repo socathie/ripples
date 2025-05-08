@@ -40,13 +40,7 @@
         
         for (let lineData of activeLines) {
           if (lineData.growing) {
-            if (lineData.touchId) {
-              let touch = touches.find(t => t.id === lineData.touchId);
-              if (touch) {
-                lineData.endX = touch.x;
-                lineData.endY = touch.y;
-              }
-            } else {
+            if (!lineData.touchId) {
               lineData.endX = mouseX;
               lineData.endY = mouseY;
             }
@@ -214,6 +208,8 @@
         for (let touch of touches) {
           let lineData = touchToLineMap.get(touch.id);
           if (lineData) {
+            lineData.endX = touch.x;
+            lineData.endY = touch.y;
             breakLine(lineData);
             touchToLineMap.delete(touch.id);
           }
