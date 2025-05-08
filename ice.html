@@ -40,7 +40,7 @@
         
         for (let lineData of activeLines) {
           if (lineData.growing) {
-            if (!touches.length) {  // Only update mouse position if no touch
+            if (!lineData.touchId) {  // Only update mouse position if no touch
               lineData.endX = mouseX;
               lineData.endY = mouseY;
             }
@@ -178,32 +178,37 @@
       }
 
       function touchStarted() {
-        let touch = touches[0];  // Only handle first touch for now
-        let newLine = {
-          x: touch.x,
-          y: touch.y,
-          growing: true,
-          endX: touch.x,
-          endY: touch.y
-        };
-        activeLines.push(newLine);
+        for (let touch of touches) {
+          let newLine = {
+            x: touch.x,
+            y: touch.y,
+            growing: true,
+            endX: touch.x,
+            endY: touch.y,
+            touchId: touch.id
+          };
+          activeLines.push(newLine);
+        }
         return false;
       }
 
       function touchMoved() {
-        let touch = touches[0];  // Only handle first touch for now
-        let lineData = activeLines[activeLines.length - 1];
-        if (lineData && lineData.growing) {
-          lineData.endX = touch.x;
-          lineData.endY = touch.y;
+        for (let touch of touches) {
+          let lineData = activeLines.find(line => line.touchId === touch.id);
+          if (lineData && lineData.growing) {
+            lineData.endX = touch.x;
+            lineData.endY = touch.y;
+          }
         }
         return false;
       }
 
       function touchEnded() {
-        let lineData = activeLines[activeLines.length - 1];
-        if (lineData && lineData.growing) {
-          breakLine(lineData);
+        for (let touch of touches) {
+          let lineData = activeLines.find(line => line.touchId === touch.id);
+          if (lineData && lineData.growing) {
+            breakLine(lineData);
+          }
         }
         return false;
       }
@@ -221,7 +226,7 @@
 
       function mouseReleased() {
         let lineData = activeLines[activeLines.length - 1];
-        if (lineData && lineData.growing) {
+        if (lineData && lineData.growing && !lineData.touchId) {
           breakLine(lineData);
         }
         return false;
