@@ -43,8 +43,16 @@
             // Update end point while drawing
             if (lineData.touchId) {
               // For touch, end points are updated in touchMoved
-              lineData.endX = touches.find(t => t.id === lineData.touchId)?.x || lineData.endX;
-              lineData.endY = touches.find(t => t.id === lineData.touchId)?.y || lineData.endY;
+              let touch = touches.find(t => t.id === lineData.touchId);
+              if (touch) {
+                lineData.endX = touch.x;
+                lineData.endY = touch.y;
+              } else {
+                // If touch is not found, break the line
+                breakLine(lineData);
+                touchToLineMap.delete(lineData.touchId);
+                continue;
+              }
             } else {
               // For mouse
               lineData.endX = mouseX;
@@ -183,26 +191,6 @@
         lineData.growing = false;
       }
 
-      function mousePressed() {
-        activeLines.push({
-          x: mouseX,
-          y: mouseY,
-          growing: true,
-          endX: mouseX,
-          endY: mouseY
-        });
-        return false;
-      }
-
-      function mouseReleased() {
-        for (let lineData of activeLines) {
-          if (lineData.growing) {
-            breakLine(lineData);
-          }
-        }
-        return false;
-      }
-
       function touchStarted() {
         for (let touch of touches) {
           if (!touchToLineMap.has(touch.id)) {
@@ -236,6 +224,38 @@
         for (let touch of touches) {
           let lineData = touchToLineMap.get(touch.id);
           if (lineData && lineData.growing) {
+            breakLine(lineData);
+            touchToLineMap.delete(touch.id);
+          }
+        }
+        return false;
+      }
+
+      function touchCancelled() {
+        for (let touch of touches) {
+          let lineData = touchToLineMap.get(touch.id);
+          if (lineData && lineData.growing) {
+            breakLine(lineData);
+            touchToLineMap.delete(touch.id);
+          }
+        }
+        return false;
+      }
+
+      function mousePressed() {
+        activeLines.push({
+          x: mouseX,
+          y: mouseY,
+          growing: true,
+          endX: mouseX,
+          endY: mouseY
+        });
+        return false;
+      }
+
+      function mouseReleased() {
+        for (let lineData of activeLines) {
+          if (lineData.growing && !lineData.touchId) {
             breakLine(lineData);
           }
         }
