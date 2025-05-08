@@ -40,21 +40,13 @@
         
         for (let lineData of activeLines) {
           if (lineData.growing) {
-            // Update end point while drawing
             if (lineData.touchId) {
-              // For touch, end points are updated in touchMoved
               let touch = touches.find(t => t.id === lineData.touchId);
               if (touch) {
                 lineData.endX = touch.x;
                 lineData.endY = touch.y;
-              } else {
-                // If touch is not found, break the line
-                breakLine(lineData);
-                touchToLineMap.delete(lineData.touchId);
-                continue;
               }
             } else {
-              // For mouse
               lineData.endX = mouseX;
               lineData.endY = mouseY;
             }
@@ -193,18 +185,16 @@
 
       function touchStarted() {
         for (let touch of touches) {
-          if (!touchToLineMap.has(touch.id)) {
-            let newLine = {
-              x: touch.x,
-              y: touch.y,
-              growing: true,
-              endX: touch.x,
-              endY: touch.y,
-              touchId: touch.id
-            };
-            activeLines.push(newLine);
-            touchToLineMap.set(touch.id, newLine);
-          }
+          let newLine = {
+            x: touch.x,
+            y: touch.y,
+            growing: true,
+            endX: touch.x,
+            endY: touch.y,
+            touchId: touch.id
+          };
+          activeLines.push(newLine);
+          touchToLineMap.set(touch.id, newLine);
         }
         return false;
       }
@@ -212,7 +202,7 @@
       function touchMoved() {
         for (let touch of touches) {
           let lineData = touchToLineMap.get(touch.id);
-          if (lineData && lineData.growing) {
+          if (lineData) {
             lineData.endX = touch.x;
             lineData.endY = touch.y;
           }
@@ -223,18 +213,7 @@
       function touchEnded() {
         for (let touch of touches) {
           let lineData = touchToLineMap.get(touch.id);
-          if (lineData && lineData.growing) {
-            breakLine(lineData);
-            touchToLineMap.delete(touch.id);
-          }
-        }
-        return false;
-      }
-
-      function touchCancelled() {
-        for (let touch of touches) {
-          let lineData = touchToLineMap.get(touch.id);
-          if (lineData && lineData.growing) {
+          if (lineData) {
             breakLine(lineData);
             touchToLineMap.delete(touch.id);
           }
