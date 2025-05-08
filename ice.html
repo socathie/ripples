@@ -40,7 +40,7 @@
         
         for (let lineData of activeLines) {
           if (lineData.growing) {
-            if (!lineData.touchId) {
+            if (!touches.length) {  // Only update mouse position if no touch
               lineData.endX = mouseX;
               lineData.endY = mouseY;
             }
@@ -178,41 +178,32 @@
       }
 
       function touchStarted() {
-        for (let touch of touches) {
-          let newLine = {
-            x: touch.x,
-            y: touch.y,
-            growing: true,
-            endX: touch.x,
-            endY: touch.y,
-            touchId: touch.id
-          };
-          activeLines.push(newLine);
-          touchToLineMap.set(touch.id, newLine);
-        }
+        let touch = touches[0];  // Only handle first touch for now
+        let newLine = {
+          x: touch.x,
+          y: touch.y,
+          growing: true,
+          endX: touch.x,
+          endY: touch.y
+        };
+        activeLines.push(newLine);
         return false;
       }
 
       function touchMoved() {
-        for (let touch of touches) {
-          let lineData = touchToLineMap.get(touch.id);
-          if (lineData) {
-            lineData.endX = touch.x;
-            lineData.endY = touch.y;
-          }
+        let touch = touches[0];  // Only handle first touch for now
+        let lineData = activeLines[activeLines.length - 1];
+        if (lineData && lineData.growing) {
+          lineData.endX = touch.x;
+          lineData.endY = touch.y;
         }
         return false;
       }
 
       function touchEnded() {
-        for (let touch of touches) {
-          let lineData = touchToLineMap.get(touch.id);
-          if (lineData) {
-            lineData.endX = touch.x;
-            lineData.endY = touch.y;
-            breakLine(lineData);
-            touchToLineMap.delete(touch.id);
-          }
+        let lineData = activeLines[activeLines.length - 1];
+        if (lineData && lineData.growing) {
+          breakLine(lineData);
         }
         return false;
       }
@@ -229,10 +220,9 @@
       }
 
       function mouseReleased() {
-        for (let lineData of activeLines) {
-          if (lineData.growing && !lineData.touchId) {
-            breakLine(lineData);
-          }
+        let lineData = activeLines[activeLines.length - 1];
+        if (lineData && lineData.growing) {
+          breakLine(lineData);
         }
         return false;
       }
